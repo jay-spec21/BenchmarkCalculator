@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FLT JHS Benchmark Score Calculator</title>
+  <link rel="stylesheet" href="style.css">
+    
+</head>
+<body>
+
+<div class="header">
+  <h1>FLT JHS Benchmark Score Calculator</h1>
+  <p>Enter subscores for each learning strand. Records are saved to the history table below.</p>
+</div>
+
+<div class="card">
+  <div class="card-title">Learner Info</div>
+  <div class="learner-label">Learner name</div>
+  <input type="text" id="learner_name" class="learner-input" placeholder="Input Name" autocomplete="off">
+</div>
+
+<div class="card">
+  <div class="card-title">Learning Strands</div>
+
+  <!-- LS1 Filipino -->
+  <div class="subject-block">
+    <div class="subject-name">LS 1 – Communication Skills (Filipino)</div>
+    <div class="subject-range">Score range: 0–18 &nbsp;|&nbsp; Passing threshold: 11</div>
+    <div class="score-row">
+      <div class="input-group">
+        <label>Subscore 1</label>
+        <input type="number" id="fil_a" min="0" max="18" placeholder="0" oninput="updateTotal('fil')">
+      </div>
+      <div class="input-group">
+        <label>Subscore 2</label>
+        <input type="number" id="fil_b" min="0" max="18" placeholder="0" oninput="updateTotal('fil')">
+      </div>
+      <div class="total-box-wrap">
+        <div class="total-box">
+          <div class="lbl">Total</div>
+          <div class="val" id="fil_total">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LS1 English -->
+  <div class="subject-block">
+    <div class="subject-name">LS 1 – Communication Skills (English)</div>
+    <div class="subject-range">Score range: 0–17 &nbsp;|&nbsp; Passing threshold: 11</div>
+    <div class="score-row">
+      <div class="input-group">
+        <label>Subscore 1</label>
+        <input type="number" id="eng_a" min="0" max="17" placeholder="0" oninput="updateTotal('eng')">
+      </div>
+      <div class="input-group">
+        <label>Subscore 2</label>
+        <input type="number" id="eng_b" min="0" max="17" placeholder="0" oninput="updateTotal('eng')">
+      </div>
+      <div class="total-box-wrap">
+        <div class="total-box">
+          <div class="lbl">Total</div>
+          <div class="val" id="eng_total">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LS3 Math -->
+  <div class="subject-block">
+    <div class="subject-name">LS 3 – Mathematical and Problem-Solving Skills</div>
+    <div class="subject-range">Score range: 0–10 &nbsp;|&nbsp; Passing threshold: 5</div>
+    <div class="score-row">
+      <div class="input-group">
+        <label>Subscore 1</label>
+        <input type="number" id="math_a" min="0" max="10" placeholder="0" oninput="updateTotal('math')">
+      </div>
+      <div class="input-group">
+        <label>Subscore 2</label>
+        <input type="number" id="math_b" min="0" max="10" placeholder="0" oninput="updateTotal('math')">
+      </div>
+      <div class="total-box-wrap">
+        <div class="total-box">
+          <div class="lbl">Total</div>
+          <div class="val" id="math_total">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="padding:18px 22px;">
+  <div class="btn-row">
+    <button class="btn-primary" onclick="calculate()">Get recommendations &amp; save</button>
+    <button class="btn-reset" onclick="resetForm()">Reset form</button>
+  </div>
+</div>
+
+<div class="card" id="results">
+  <div class="card-title">Recommendations per Strand</div>
+  <div id="result_rows"></div>
+</div>
+
+<div class="card">
+  <div class="history-header">
+    <div class="history-title">Records history</div>
+    <button class="btn-clear" onclick="clearHistory()">Clear all</button>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="stat-val neutral" id="stat_total">0</div>
+      <div class="stat-lbl">Total Records</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val green" id="stat_prof">0</div>
+      <div class="stat-lbl">Proficient Strands</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-val orange" id="stat_inter">0</div>
+      <div class="stat-lbl">Intermediate Strands</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Filipino</th>
+          <th>English</th>
+          <th>Math</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="history_body"></tbody>
+    </table>
+    <div class="empty-state" id="empty_state">No records yet. Add a learner above.</div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'flt_jhs_records';
+
+  const subjects = [
+    { key: 'fil',  label: 'LS 1 – Communication Skills (Filipino)', max: 18, threshold: 11 },
+    { key: 'eng',  label: 'LS 1 – Communication Skills (English)',  max: 17, threshold: 11 },
+    { key: 'math', label: 'LS 3 – Mathematical & Problem-Solving Skills', max: 10, threshold: 5 },
+  ];
+
+  // ── Storage helpers ──────────────────────────────────────────────
+  function loadRecords() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function saveRecords(records) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  }
+
+  // ── Live total display ────────────────────────────────────────────
+  function updateTotal(key) {
+    const a = parseFloat(document.getElementById(key + '_a').value) || 0;
+    const b = parseFloat(document.getElementById(key + '_b').value) || 0;
+    document.getElementById(key + '_total').textContent = a + b;
+  }
+
+  // ── Calculate & save ─────────────────────────────────────────────
+  function calculate() {
+    const name = document.getElementById('learner_name').value.trim();
+    if (!name) { alert('Please enter the learner\'s name.'); return; }
+
+    const rows = [];
+    for (const s of subjects) {
+      const a = parseFloat(document.getElementById(s.key + '_a').value);
+      const b = parseFloat(document.getElementById(s.key + '_b').value);
+
+      if (isNaN(a) || isNaN(b)) {
+        alert(`Please fill in both subscores for:\n${s.label}`);
+        return;
+      }
+      const total = a + b;
+      if (total > s.max) {
+        alert(`Total score (${total}) exceeds maximum (${s.max}) for:\n${s.label}`);
+        return;
+      }
+      rows.push({ ...s, total, proficient: total >= s.threshold });
+    }
+
+    // Show recommendations
+    const container = document.getElementById('result_rows');
+    container.innerHTML = '';
+    rows.forEach(r => {
+      const cls  = r.proficient ? 'pass' : 'warn';
+      const icon = r.proficient ? '✅' : '📘';
+      const tag  = r.proficient ? 'Proficient' : 'Intermediate';
+      const rec  = r.proficient
+        ? 'Proceed to <strong>Proficient Competencies</strong> of FLT JHS'
+        : 'Start with <strong>Upper Intermediate Competencies</strong> of FLT JHS';
+
+      const div = document.createElement('div');
+      div.className = `result-row ${cls}`;
+      div.innerHTML = `
+        <div class="result-icon">${icon}</div>
+        <div class="result-info">
+          <div class="result-subject">${r.label}</div>
+          <div class="result-score-line">Score: ${r.total} / ${r.max} &nbsp;(Threshold: ${r.threshold})</div>
+          <div class="result-recommendation">${rec}</div>
+        </div>
+        <div class="result-tag">${tag}</div>
+      `;
+      container.appendChild(div);
+    });
+
+    const resultsEl = document.getElementById('results');
+    resultsEl.style.display = 'block';
+    resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Save record
+    const record = {
+      name,
+      fil:  rows[0].total,
+      eng:  rows[1].total,
+      math: rows[2].total,
+      fil_pass:  rows[0].proficient,
+      eng_pass:  rows[1].proficient,
+      math_pass: rows[2].proficient,
+      date: new Date().toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }),
+    };
+
+    const records = loadRecords();
+    records.unshift(record);
+    saveRecords(records);
+    renderHistory();
+  }
+
+  // ── Reset form ────────────────────────────────────────────────────
+  function resetForm() {
+    document.getElementById('learner_name').value = '';
+    ['fil_a','fil_b','eng_a','eng_b','math_a','math_b'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    ['fil_total','eng_total','math_total'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+    document.getElementById('results').style.display = 'none';
+  }
+
+  // ── Clear history ─────────────────────────────────────────────────
+  function clearHistory() {
+    if (!confirm('Clear all records? This cannot be undone.')) return;
+    saveRecords([]);
+    renderHistory();
+  }
+
+  // ── Render history table ──────────────────────────────────────────
+  function renderHistory() {
+    const records = loadRecords();
+    const tbody = document.getElementById('history_body');
+    const empty = document.getElementById('empty_state');
+
+    // Stats
+    let profCount = 0, interCount = 0;
+    records.forEach(r => {
+      if (r.fil_pass)  profCount++;  else interCount++;
+      if (r.eng_pass)  profCount++;  else interCount++;
+      if (r.math_pass) profCount++;  else interCount++;
+    });
+    document.getElementById('stat_total').textContent = records.length;
+    document.getElementById('stat_prof').textContent  = profCount;
+    document.getElementById('stat_inter').textContent = interCount;
+
+    if (records.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+
+    empty.style.display = 'none';
+    tbody.innerHTML = records.map(r => `
+      <tr>
+        <td>${escHtml(r.name)}</td>
+        <td>
+          ${r.fil}
+          <span class="chip ${r.fil_pass ? 'pass' : 'warn'}">${r.fil_pass ? 'P' : 'I'}</span>
+        </td>
+        <td>
+          ${r.eng}
+          <span class="chip ${r.eng_pass ? 'pass' : 'warn'}">${r.eng_pass ? 'P' : 'I'}</span>
+        </td>
+        <td>
+          ${r.math}
+          <span class="chip ${r.math_pass ? 'pass' : 'warn'}">${r.math_pass ? 'P' : 'I'}</span>
+        </td>
+        <td style="color:var(--muted)">${r.date}</td>
+      </tr>
+    `).join('');
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Init
+  renderHistory();
+</script>
+</body>
+</html>
